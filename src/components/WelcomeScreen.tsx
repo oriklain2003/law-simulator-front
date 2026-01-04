@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Scale, Briefcase, ArrowLeft, Sparkles, MessageSquare, History } from 'lucide-react';
+import { Scale, Briefcase, ArrowLeft, Sparkles, MessageSquare, History, LogOut, User } from 'lucide-react';
 import { 
   LiquidGlassView, 
   LiquidGlassButton, 
@@ -16,9 +16,11 @@ interface WelcomeScreenProps {
   onStart: (name: string, cv?: string) => void;
   onViewHistory: () => void;
   isLoading: boolean;
+  username?: string | null;
+  onLogout?: () => void;
 }
 
-export function WelcomeScreen({ onStart, onViewHistory, isLoading }: WelcomeScreenProps) {
+export function WelcomeScreen({ onStart, onViewHistory, isLoading, username, onLogout }: WelcomeScreenProps) {
   const [name, setName] = useState('');
   const [cv, setCv] = useState('');
   const [showCvInput, setShowCvInput] = useState(false);
@@ -35,6 +37,48 @@ export function WelcomeScreen({ onStart, onViewHistory, isLoading }: WelcomeScre
       {/* Marble Background with veins */}
       <div className="marble-bg" />
       <div className="marble-veins" />
+
+      {/* User info and logout button - top right */}
+      {username && onLogout && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.4 }}
+          className="fixed top-4 left-4 z-20 flex items-center gap-3"
+          dir="ltr"
+        >
+          <div 
+            className="flex items-center gap-2 py-2 px-4 rounded-2xl"
+            style={{
+              background: 'rgba(255, 255, 255, 0.7)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.8)',
+              boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)'
+            }}
+          >
+            <User className="w-4 h-4 text-gray-500" />
+            <span className="text-sm text-gray-600 font-medium">{username}</span>
+          </div>
+          <motion.button
+            onClick={onLogout}
+            className="flex items-center gap-2 py-2 px-4 rounded-2xl text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+            style={{
+              background: 'rgba(255, 255, 255, 0.6)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.7)',
+              boxShadow: '0 4px 15px rgba(0, 0, 0, 0.04)'
+            }}
+            whileHover={{ 
+              scale: 1.02,
+              background: 'rgba(255, 255, 255, 0.8)',
+            }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <LogOut className="w-4 h-4" />
+            <span>התנתק</span>
+          </motion.button>
+        </motion.div>
+      )}
       
       {/* Animated liquid blobs for dynamic background - brighter colors */}
       <LiquidBlob 

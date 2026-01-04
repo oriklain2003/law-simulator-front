@@ -1,14 +1,33 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { ChatInterface } from './components/ChatInterface';
 import { ReportView } from './components/ReportView';
 import { ReportsHistory } from './components/ReportsHistory';
 import { SavedReportView } from './components/SavedReportView';
-import { startInterview, sendMessage, sendAudioMessage, getReport, deleteSession } from './api';
+import { AuthPage } from './components/AuthPage';
+import { 
+  startInterview, 
+  sendMessage, 
+  sendAudioMessage, 
+  getReport, 
+  deleteSession,
+  login as apiLogin,
+  register as apiRegister,
+  verifyToken,
+  logout as apiLogout,
+  getStoredUsername
+} from './api';
 import type { AppView, Message, InterviewPhase, InterviewReport, SavedReport } from './types';
 
 function App() {
+  // Auth state
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  // App state
   const [view, setView] = useState<AppView>('welcome');
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -18,6 +37,67 @@ function App() {
   const [report, setReport] = useState<InterviewReport | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [selectedSavedReport, setSelectedSavedReport] = useState<SavedReport | null>(null);
+
+  // Check authentication on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      const result = await verifyToken();
+      setIsAuthenticated(result.valid);
+      if (result.valid && result.username) {
+        setUsername(result.username);
+      } else {
+        setUsername(getStoredUsername());
+      }
+    };
+    checkAuth();
+  }, []);
+
+  // Auth handlers
+  const handleLogin = useCallback(async (user: string, password: string) => {
+    setAuthLoading(true);
+    setAuthError(null);
+    try {
+      const response = await apiLogin(user, password);
+      if (response.success) {
+        setIsAuthenticated(true);
+        setUsername(response.username || user);
+      }
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'ההתחברות נכשלה');
+    } finally {
+      setAuthLoading(false);
+    }
+  }, []);
+
+  const handleRegister = useCallback(async (user: string, password: string) => {
+    setAuthLoading(true);
+    setAuthError(null);
+    try {
+      const response = await apiRegister(user, password);
+      if (response.success) {
+        setIsAuthenticated(true);
+        setUsername(response.username || user);
+      }
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'ההרשמה נכשלה');
+    } finally {
+      setAuthLoading(false);
+    }
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    await apiLogout();
+    setIsAuthenticated(false);
+    setUsername(null);
+    // Reset app state
+    setSessionId(null);
+    setMessages([]);
+    setCurrentPhase('opening');
+    setIsComplete(false);
+    setReport(null);
+    setSelectedSavedReport(null);
+    setView('welcome');
+  }, []);
 
   const handleStartInterview = useCallback(async (name: string, cv?: string) => {
     setIsLoading(true);
@@ -139,6 +219,35 @@ function App() {
     setView('history');
   }, []);
 
+  // Show loading while checking auth
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="marble-bg" />
+        <div className="marble-veins" />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="relative z-10"
+        >
+          <div className="w-12 h-12 border-4 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Show auth page if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <AuthPage
+        onLogin={handleLogin}
+        onRegister={handleRegister}
+        isLoading={authLoading}
+        error={authError}
+      />
+    );
+  }
+
   return (
     <AnimatePresence mode="wait">
       {view === 'welcome' && (
@@ -153,7 +262,9 @@ function App() {
           <WelcomeScreen 
             onStart={handleStartInterview} 
             onViewHistory={handleViewHistory}
-            isLoading={isLoading} 
+            isLoading={isLoading}
+            username={username}
+            onLogout={handleLogout}
           />
         </motion.div>
       )}

@@ -59,3 +59,21 @@ export interface SavedReportsResponse {
   reports: SavedReport[];
 }
 
+// ============================================
+// AUTHENTICATION TYPES
+// ============================================
+
+export interface AuthResponse {
+  success: boolean;
+  message: string;
+  token?: string;
+  username?: string;
+}
+
+export interface VerifyTokenResponse {
+  valid: boolean;
+  username?: string;
+}
+
+export type AuthView = 'login' | 'register';
+
