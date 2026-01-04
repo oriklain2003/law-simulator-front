@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { Send, User, Briefcase, Loader2, Mic, Square, X } from 'lucide-react';
 import type { Message, InterviewPhase } from '../types';
+import { LiquidGlassView, LiquidGlassButton } from './LiquidGlass';
 
 interface ChatInterfaceProps {
   messages: Message[];
@@ -32,6 +33,125 @@ const phaseProgress: Record<InterviewPhase, number> = {
   completed: 6,
 };
 
+// ============================================
+// LIQUID GLASS TEXTAREA INPUT - Clean glass effect
+// ============================================
+interface LiquidGlassTextareaInputProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
+
+const LiquidGlassTextareaInput = React.forwardRef<HTMLTextAreaElement, LiquidGlassTextareaInputProps>(
+  ({ className = '', style, onFocus, onBlur, ...props }, ref) => {
+    const [isFocused, setIsFocused] = React.useState(false);
+    const controls = useAnimation();
+
+    const handleFocus = (e: React.FocusEvent<HTMLTextAreaElement>) => {
+      setIsFocused(true);
+      // Subtle pop animation on focus
+      controls.start({
+        scale: [1, 1.015, 0.995, 1.005, 1],
+        transition: { duration: 0.35, ease: [0.34, 1.56, 0.64, 1] }
+      });
+      onFocus?.(e);
+    };
+
+    const handleBlur = (e: React.FocusEvent<HTMLTextAreaElement>) => {
+      setIsFocused(false);
+      onBlur?.(e);
+    };
+
+    return (
+      <motion.div
+        animate={controls}
+        className="flex-1 relative"
+        style={{ borderRadius: '14px' }}
+      >
+        {/* The textarea with clean liquid glass styling */}
+        <textarea
+          ref={ref}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          className={`liquid-glass-textarea ${className}`}
+          style={{
+            width: '100%',
+            padding: '12px 16px',
+            fontSize: '16px', // 16px prevents iOS zoom
+            lineHeight: '1.5',
+            background: isFocused
+              ? 'linear-gradient(165deg, rgba(255, 255, 255, 0.98) 0%, rgba(250, 252, 255, 0.95) 100%)'
+              : 'linear-gradient(165deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            border: isFocused 
+              ? '1.5px solid rgba(255, 255, 255, 1)' 
+              : '1.5px solid rgba(255, 255, 255, 0.9)',
+            borderTopColor: 'rgba(255, 255, 255, 1)',
+            borderLeftColor: isFocused ? 'rgba(255, 255, 255, 1)' : 'rgba(255, 255, 255, 0.95)',
+            borderBottomColor: isFocused ? 'rgba(200, 200, 200, 0.5)' : 'rgba(200, 200, 200, 0.4)',
+            borderRightColor: isFocused ? 'rgba(200, 200, 200, 0.6)' : 'rgba(200, 200, 200, 0.5)',
+            borderRadius: '14px',
+            color: '#1a1a2e',
+            outline: 'none',
+            resize: 'none',
+            minHeight: '44px',
+            maxHeight: '120px',
+            boxShadow: isFocused
+              ? `
+                0 8px 32px rgba(0, 0, 0, 0.12),
+                0 4px 12px rgba(0, 0, 0, 0.08),
+                inset 0 2px 4px rgba(255, 255, 255, 1),
+                inset 0 -1px 2px rgba(0, 0, 0, 0.02)
+              `
+              : `
+                0 4px 16px rgba(0, 0, 0, 0.08),
+                0 2px 6px rgba(0, 0, 0, 0.05),
+                inset 0 1px 2px rgba(255, 255, 255, 0.9)
+              `,
+            transition: 'all 0.25s ease',
+            position: 'relative',
+            zIndex: 1,
+            ...style,
+          }}
+          {...props}
+        />
+
+        {/* Top highlight shine */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 2,
+            left: 4,
+            right: 4,
+            height: '45%',
+            background: isFocused
+              ? 'linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%)'
+              : 'linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.2) 50%, transparent 100%)',
+            borderRadius: '12px 12px 0 0',
+            pointerEvents: 'none',
+            zIndex: 2,
+            transition: 'all 0.25s ease',
+          }}
+        />
+
+        {/* Top edge white line */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 1,
+            left: 10,
+            right: 10,
+            height: '1px',
+            background: 'linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 1) 20%, rgba(255, 255, 255, 1) 80%, transparent 100%)',
+            borderRadius: '14px',
+            pointerEvents: 'none',
+            zIndex: 3,
+          }}
+        />
+      </motion.div>
+    );
+  }
+);
+
+LiquidGlassTextareaInput.displayName = 'LiquidGlassTextareaInput';
+
 export function ChatInterface({
   messages,
   currentPhase,
@@ -51,7 +171,7 @@ export function ChatInterface({
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const scrollToBottom = useCallback(() => {
     if (messagesContainerRef.current) {
@@ -167,46 +287,63 @@ export function ChatInterface({
   };
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-gradient-to-b from-gray-50 to-white">
+    <div className="fixed inset-0 flex flex-col">
+      {/* Marble Background */}
+      <div className="marble-bg" />
+      <div className="marble-veins" />
+      
       {/* Background decoration */}
       <div className="bg-decoration bg-decoration-1" />
       <div className="bg-decoration bg-decoration-2" />
 
-      {/* Header */}
-      <motion.header
+      {/* Header with Liquid Glass */}
+      <LiquidGlassView
+        effect="regular"
+        radius={24}
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass-card mx-3 mt-3 p-3 sm:p-4 flex items-center justify-between relative z-10 flex-shrink-0 safe-area-top"
+        className="mx-3 mt-3 flex-shrink-0 safe-area-top"
+        style={{ padding: '12px 16px', zIndex: 10 }}
       >
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center shadow-md">
-            <Briefcase className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center shadow-md">
+              <Briefcase className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg sm:text-xl font-bold text-gray-800">ראיון התמחות</h1>
+              <p className="text-xs sm:text-sm text-gray-500">{phaseLabels[currentPhase]}</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-lg sm:text-xl font-bold text-gray-800">ראיון התמחות</h1>
-            <p className="text-xs sm:text-sm text-gray-500">{phaseLabels[currentPhase]}</p>
-          </div>
-        </div>
 
-        {/* Progress indicator */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs sm:text-sm text-gray-500 hidden sm:block">
-            שאלה {phaseProgress[currentPhase]} מתוך 6
-          </span>
-          <div className="flex gap-1">
-            {[1, 2, 3, 4, 5, 6].map((step) => (
-              <div
-                key={step}
-                className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full transition-all duration-300 ${
-                  step <= phaseProgress[currentPhase]
-                    ? 'bg-gray-800'
-                    : 'bg-gray-200'
-                }`}
-              />
-            ))}
+          {/* Progress indicator */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs sm:text-sm text-gray-500 hidden sm:block">
+              שאלה {phaseProgress[currentPhase]} מתוך 6
+            </span>
+            <div className="flex gap-1">
+              {[1, 2, 3, 4, 5, 6].map((step) => (
+                <motion.div
+                  key={step}
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: step * 0.05, type: 'spring', stiffness: 300 }}
+                  className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full transition-all duration-300 ${
+                    step <= phaseProgress[currentPhase]
+                      ? 'bg-gray-800 shadow-sm'
+                      : 'bg-gray-200/60'
+                  }`}
+                  style={{
+                    boxShadow: step <= phaseProgress[currentPhase] 
+                      ? '0 2px 8px rgba(0,0,0,0.15)' 
+                      : 'none'
+                  }}
+                />
+              ))}
+            </div>
           </div>
         </div>
-      </motion.header>
+      </LiquidGlassView>
 
       {/* Messages area - scrollable */}
       <div 
@@ -283,21 +420,25 @@ export function ChatInterface({
         </div>
       </div>
 
-      {/* Input area - fixed at bottom */}
-      <motion.div
+      {/* Input area - fixed at bottom with Liquid Glass */}
+      <LiquidGlassView
+        effect="regular"
+        radius={24}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass-card mx-3 mb-3 p-3 sm:p-4 relative z-10 flex-shrink-0 safe-area-bottom"
+        className="mx-3 mb-3 flex-shrink-0 safe-area-bottom"
+        style={{ padding: '12px 16px', zIndex: 10 }}
       >
         {isComplete ? (
           <div className="text-center py-2">
             <p className="text-gray-600 mb-3 text-sm sm:text-base">הראיון הסתיים! לחץ/י לצפייה בדוח המשוב</p>
-            <button
+            <LiquidGlassButton
+              variant="primary"
+              size="md"
               onClick={onViewReport}
-              className="glass-button px-6 sm:px-8 py-2.5 sm:py-3 text-base sm:text-lg font-semibold"
             >
               צפה בדוח המשוב
-            </button>
+            </LiquidGlassButton>
           </div>
         ) : (
           <div className="space-y-2">
@@ -328,14 +469,13 @@ export function ChatInterface({
             )}
 
             <form onSubmit={handleSubmit} className="flex gap-2 items-end">
-              <textarea
+              <LiquidGlassTextareaInput
                 ref={textareaRef}
                 value={input}
                 onChange={handleTextareaChange}
                 onKeyDown={handleKeyDown}
                 placeholder="הקלד/י את תשובתך..."
                 disabled={isLoading || isRecording}
-                className="glass-input flex-1 px-3 sm:px-4 py-2.5 sm:py-3 resize-none min-h-[44px] max-h-[120px] text-sm sm:text-base"
                 dir="rtl"
                 rows={1}
               />
@@ -360,17 +500,20 @@ export function ChatInterface({
                 </button>
               )}
               
-              <button
+              <motion.button
                 type="submit"
                 disabled={(!input.trim() && !audioBlob) || isLoading || isRecording}
                 className="glass-button p-2.5 sm:p-3 flex-shrink-0"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
               >
                 <Send className="w-5 h-5 sm:w-6 sm:h-6" />
-              </button>
+              </motion.button>
             </form>
           </div>
         )}
-      </motion.div>
+      </LiquidGlassView>
     </div>
   );
 }

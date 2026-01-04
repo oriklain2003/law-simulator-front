@@ -3,8 +3,10 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { ChatInterface } from './components/ChatInterface';
 import { ReportView } from './components/ReportView';
+import { ReportsHistory } from './components/ReportsHistory';
+import { SavedReportView } from './components/SavedReportView';
 import { startInterview, sendMessage, sendAudioMessage, getReport, deleteSession } from './api';
-import type { AppView, Message, InterviewPhase, InterviewReport } from './types';
+import type { AppView, Message, InterviewPhase, InterviewReport, SavedReport } from './types';
 
 function App() {
   const [view, setView] = useState<AppView>('welcome');
@@ -15,6 +17,7 @@ function App() {
   const [isComplete, setIsComplete] = useState(false);
   const [report, setReport] = useState<InterviewReport | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
+  const [selectedSavedReport, setSelectedSavedReport] = useState<SavedReport | null>(null);
 
   const handleStartInterview = useCallback(async (name: string, cv?: string) => {
     setIsLoading(true);
@@ -114,8 +117,27 @@ function App() {
     setCurrentPhase('opening');
     setIsComplete(false);
     setReport(null);
+    setSelectedSavedReport(null);
     setView('welcome');
   }, [sessionId]);
+
+  const handleViewHistory = useCallback(() => {
+    setView('history');
+  }, []);
+
+  const handleViewSavedReport = useCallback((savedReport: SavedReport) => {
+    setSelectedSavedReport(savedReport);
+    setView('saved-report');
+  }, []);
+
+  const handleBackFromHistory = useCallback(() => {
+    setView('welcome');
+  }, []);
+
+  const handleBackFromSavedReport = useCallback(() => {
+    setSelectedSavedReport(null);
+    setView('history');
+  }, []);
 
   return (
     <AnimatePresence mode="wait">
@@ -128,7 +150,11 @@ function App() {
           transition={{ duration: 0.3 }}
           className="min-h-screen min-h-[-webkit-fill-available]"
         >
-          <WelcomeScreen onStart={handleStartInterview} isLoading={isLoading} />
+          <WelcomeScreen 
+            onStart={handleStartInterview} 
+            onViewHistory={handleViewHistory}
+            isLoading={isLoading} 
+          />
         </motion.div>
       )}
 
@@ -163,6 +189,36 @@ function App() {
             report={report!}
             onRestart={handleRestart}
             isLoading={reportLoading}
+          />
+        </motion.div>
+      )}
+
+      {view === 'history' && (
+        <motion.div
+          key="history"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <ReportsHistory
+            onBack={handleBackFromHistory}
+            onViewReport={handleViewSavedReport}
+          />
+        </motion.div>
+      )}
+
+      {view === 'saved-report' && selectedSavedReport && (
+        <motion.div
+          key="saved-report"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <SavedReportView
+            savedReport={selectedSavedReport}
+            onBack={handleBackFromSavedReport}
           />
         </motion.div>
       )}

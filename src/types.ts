@@ -45,5 +45,17 @@ export interface ReportResponse {
   report: InterviewReport;
 }
 
-export type AppView = 'welcome' | 'interview' | 'report';
+export type AppView = 'welcome' | 'interview' | 'report' | 'history' | 'saved-report';
+
+export interface SavedReport {
+  id: string;
+  candidate_name: string | null;
+  created_at: string;
+  report: InterviewReport;
+  messages: Message[];
+}
+
+export interface SavedReportsResponse {
+  reports: SavedReport[];
+}
 

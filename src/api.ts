@@ -1,6 +1,6 @@
-import type { StartInterviewResponse, ChatResponse, ReportResponse } from './types';
+import type { StartInterviewResponse, ChatResponse, ReportResponse, SavedReportsResponse, SavedReport } from './types';
 
-const API_BASE = '/api';
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 export async function startInterview(candidateName?: string, cvText?: string): Promise<StartInterviewResponse> {
   const response = await fetch(`${API_BASE}/interview/start`, {
@@ -82,4 +82,34 @@ export async function deleteSession(sessionId: string): Promise<void> {
   await fetch(`${API_BASE}/interview/${sessionId}`, {
     method: 'DELETE',
   });
+}
+
+export async function getReportsHistory(): Promise<SavedReportsResponse> {
+  const response = await fetch(`${API_BASE}/reports/history`);
+
+  if (!response.ok) {
+    throw new Error('Failed to get reports history');
+  }
+
+  return response.json();
+}
+
+export async function getSavedReport(reportId: string): Promise<SavedReport> {
+  const response = await fetch(`${API_BASE}/reports/${reportId}`);
+
+  if (!response.ok) {
+    throw new Error('Failed to get saved report');
+  }
+
+  return response.json();
+}
+
+export async function deleteSavedReport(reportId: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/reports/${reportId}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to delete saved report');
+  }
 }
