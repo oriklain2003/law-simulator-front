@@ -355,3 +355,16 @@ export async function getAdminReport(reportId: string): Promise<AdminSavedReport
 
   return response.json();
 }
+
+export async function recalculateAdminReport(reportId: string): Promise<AdminSavedReport> {
+  const response = await fetch(`${API_BASE}/admin/reports/${reportId}/recalculate`, {
+    method: 'POST',
+    headers: getAdminHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to recalculate report');
+  }
+
+  return response.json();
+}

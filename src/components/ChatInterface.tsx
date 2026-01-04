@@ -199,12 +199,16 @@ export function ChatInterface({
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      // Use compatible audio format
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm') 
-        ? 'audio/webm' 
-        : MediaRecorder.isTypeSupported('audio/mp4') 
-          ? 'audio/mp4' 
-          : 'audio/wav';
+      // Use audio format supported by Gemini API
+      // Supported: wav, mp3, aiff, aac, ogg, flac
+      // Prefer ogg (Opus codec in webm container works), then wav, then webm as fallback
+      const mimeType = MediaRecorder.isTypeSupported('audio/ogg') 
+        ? 'audio/ogg' 
+        : MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : MediaRecorder.isTypeSupported('audio/webm') 
+            ? 'audio/webm' 
+            : 'audio/wav';
       
       const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
@@ -262,7 +266,14 @@ export function ChatInterface({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if ((input.trim() || audioBlob) && !isLoading && !isComplete) {
-      onSendMessage(input.trim(), audioBlob || undefined);
+      // If user typed text, send text only (ignore any recorded audio)
+      // If no text but has audio, send audio only
+      if (input.trim()) {
+        onSendMessage(input.trim(), undefined);
+        setAudioBlob(null); // Clear any pending audio
+      } else if (audioBlob) {
+        onSendMessage('', audioBlob);
+      }
       setInput('');
       setAudioBlob(null);
       setRecordingTime(0);

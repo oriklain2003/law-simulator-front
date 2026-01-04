@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   ChevronRight,
@@ -8,7 +9,8 @@ import {
   User,
   Calendar,
   MessageSquare,
-  Shield
+  Shield,
+  RefreshCw
 } from 'lucide-react';
 import { 
   LiquidGlassView, 
@@ -16,14 +18,32 @@ import {
   LiquidBlob,
   LiquidGlassFilters 
 } from './LiquidGlass';
+import { recalculateAdminReport } from '../api';
 import type { AdminSavedReport } from '../types';
 
 interface AdminReportViewProps {
   report: AdminSavedReport;
   onBack: () => void;
+  onReportUpdated?: (updatedReport: AdminSavedReport) => void;
 }
 
-export function AdminReportView({ report, onBack }: AdminReportViewProps) {
+export function AdminReportView({ report: initialReport, onBack, onReportUpdated }: AdminReportViewProps) {
+  const [report, setReport] = useState(initialReport);
+  const [isRecalculating, setIsRecalculating] = useState(false);
+
+  const handleRecalculate = async () => {
+    try {
+      setIsRecalculating(true);
+      const updatedReport = await recalculateAdminReport(report.id);
+      setReport(updatedReport);
+      onReportUpdated?.(updatedReport);
+    } catch (error) {
+      console.error('Failed to recalculate report:', error);
+      alert('שגיאה בחישוב מחדש של הדוח');
+    } finally {
+      setIsRecalculating(false);
+    }
+  };
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('he-IL', {
@@ -110,14 +130,26 @@ export function AdminReportView({ report, onBack }: AdminReportViewProps) {
                 </div>
               </div>
 
-              <LiquidGlassButton
-                variant="ghost"
-                size="sm"
-                onClick={onBack}
-                icon={<ChevronRight className="w-4 h-4" />}
-              >
-                חזרה לרשימה
-              </LiquidGlassButton>
+              <div className="flex items-center gap-3">
+                <LiquidGlassButton
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleRecalculate}
+                  disabled={isRecalculating}
+                  loading={isRecalculating}
+                  icon={!isRecalculating && <RefreshCw className="w-4 h-4" />}
+                >
+                  {isRecalculating ? 'מחשב מחדש...' : 'חשב דוח מחדש'}
+                </LiquidGlassButton>
+                <LiquidGlassButton
+                  variant="ghost"
+                  size="sm"
+                  onClick={onBack}
+                  icon={<ChevronRight className="w-4 h-4" />}
+                >
+                  חזרה לרשימה
+                </LiquidGlassButton>
+              </div>
             </div>
           </LiquidGlassView>
         </motion.div>

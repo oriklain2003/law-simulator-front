@@ -399,6 +399,7 @@ function App() {
           <AdminReportView
             report={selectedAdminReport}
             onBack={handleBackFromAdminReport}
+            onReportUpdated={(updatedReport) => setSelectedAdminReport(updatedReport)}
           />
         </motion.div>
       )}
