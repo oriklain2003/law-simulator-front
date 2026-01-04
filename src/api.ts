@@ -145,6 +145,30 @@ export async function startInterview(candidateName?: string, cvText?: string): P
   return response.json();
 }
 
+export async function startInterviewWithCV(candidateName?: string, cvFile?: File): Promise<StartInterviewResponse> {
+  const formData = new FormData();
+  
+  if (candidateName) {
+    formData.append('candidate_name', candidateName);
+  }
+  
+  if (cvFile) {
+    formData.append('cv_file', cvFile);
+  }
+
+  const response = await fetch(`${API_BASE}/interview/start-with-cv`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to start interview' }));
+    throw new Error(error.detail || 'Failed to start interview');
+  }
+
+  return response.json();
+}
+
 export async function sendMessage(sessionId: string, message: string): Promise<ChatResponse> {
   const response = await fetch(`${API_BASE}/interview/chat`, {
     method: 'POST',

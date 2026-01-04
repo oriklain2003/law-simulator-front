@@ -7,7 +7,7 @@ import { ReportsHistory } from './components/ReportsHistory';
 import { SavedReportView } from './components/SavedReportView';
 import { AuthPage } from './components/AuthPage';
 import { 
-  startInterview, 
+  startInterviewWithCV, 
   sendMessage, 
   sendAudioMessage, 
   getReport, 
@@ -99,10 +99,10 @@ function App() {
     setView('welcome');
   }, []);
 
-  const handleStartInterview = useCallback(async (name: string, cv?: string) => {
+  const handleStartInterview = useCallback(async (name: string, cvFile?: File) => {
     setIsLoading(true);
     try {
-      const response = await startInterview(name, cv);
+      const response = await startInterviewWithCV(name, cvFile);
       setSessionId(response.session_id);
       setMessages([
         {
@@ -115,7 +115,8 @@ function App() {
       setView('interview');
     } catch (error) {
       console.error('Failed to start interview:', error);
-      alert('שגיאה בהתחלת הראיון. אנא נסה שוב.');
+      const errorMessage = error instanceof Error ? error.message : 'שגיאה בהתחלת הראיון. אנא נסה שוב.';
+      alert(errorMessage);
     } finally {
       setIsLoading(false);
     }

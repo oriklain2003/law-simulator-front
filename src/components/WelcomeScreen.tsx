@@ -1,11 +1,10 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Scale, Briefcase, ArrowLeft, Sparkles, MessageSquare, History, LogOut, User } from 'lucide-react';
+import { Scale, Briefcase, ArrowLeft, Sparkles, MessageSquare, History, LogOut, User, Upload, FileText, X } from 'lucide-react';
 import { 
   LiquidGlassView, 
   LiquidGlassButton, 
   LiquidGlassInput,
-  LiquidGlassTextarea,
   LiquidGlassFeature,
   LiquidIcon,
   LiquidBlob,
@@ -13,20 +12,79 @@ import {
 } from './LiquidGlass';
 
 interface WelcomeScreenProps {
-  onStart: (name: string, cv?: string) => void;
+  onStart: (name: string, cvFile?: File) => void;
   onViewHistory: () => void;
   isLoading: boolean;
   username?: string | null;
   onLogout?: () => void;
 }
 
+// Allowed CV file types
+const ALLOWED_CV_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'text/plain'
+];
+const ALLOWED_CV_EXTENSIONS = ['.pdf', '.doc', '.docx', '.txt'];
+
 export function WelcomeScreen({ onStart, onViewHistory, isLoading, username, onLogout }: WelcomeScreenProps) {
   const [name, setName] = useState('');
-  const [cv, setCv] = useState('');
+  const [cvFile, setCvFile] = useState<File | null>(null);
   const [showCvInput, setShowCvInput] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleStart = () => {
-    onStart(name.trim(), cv.trim() || undefined);
+    onStart(name.trim(), cvFile || undefined);
+  };
+
+  const validateFile = (file: File): boolean => {
+    const extension = '.' + file.name.split('.').pop()?.toLowerCase();
+    return ALLOWED_CV_TYPES.includes(file.type) || ALLOWED_CV_EXTENSIONS.includes(extension);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (validateFile(file)) {
+        setCvFile(file);
+      } else {
+        alert('סוג קובץ לא נתמך. אנא העלה קובץ מסוג: PDF, DOC, DOCX או TXT');
+      }
+    }
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      if (validateFile(file)) {
+        setCvFile(file);
+      } else {
+        alert('סוג קובץ לא נתמך. אנא העלה קובץ מסוג: PDF, DOC, DOCX או TXT');
+      }
+    }
+  };
+
+  const removeFile = () => {
+    setCvFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   return (
@@ -232,15 +290,84 @@ export function WelcomeScreen({ onStart, onViewHistory, isLoading, username, onL
               exit={{ opacity: 0, height: 0, scale: 0.95 }}
               transition={{ duration: 0.3, ease: [0.34, 1.56, 0.64, 1] }}
             >
-              <LiquidGlassTextarea
-                value={cv}
-                onChange={(e) => setCv(e.target.value)}
-                placeholder="הדבק/י את קורות החיים שלך כאן..."
-                dir="rtl"
-                style={{ height: '120px' }}
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                onChange={handleFileChange}
+                className="hidden"
               />
+              
+              {/* File drop zone */}
+              {!cvFile ? (
+                <motion.div
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`
+                    relative cursor-pointer rounded-2xl p-6 text-center transition-all duration-300
+                    ${dragActive 
+                      ? 'border-2 border-dashed border-gray-400 bg-gray-50/80' 
+                      : 'border-2 border-dashed border-gray-200 hover:border-gray-300 bg-white/50'
+                    }
+                  `}
+                  style={{
+                    backdropFilter: 'blur(10px)',
+                  }}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                >
+                  <Upload className={`w-8 h-8 mx-auto mb-3 ${dragActive ? 'text-gray-600' : 'text-gray-400'}`} />
+                  <p className="text-sm text-gray-600 font-medium mb-1">
+                    גרור/י קובץ לכאן או לחץ/י לבחירה
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    PDF, DOC, DOCX או TXT
+                  </p>
+                </motion.div>
+              ) : (
+                /* Selected file display */
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex items-center justify-between p-4 rounded-2xl bg-white/70"
+                  style={{
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(200, 200, 200, 0.3)',
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                      <FileText className="w-5 h-5 text-gray-600" />
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-gray-700 truncate max-w-[180px]">
+                        {cvFile.name}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {(cvFile.size / 1024).toFixed(1)} KB
+                      </p>
+                    </div>
+                  </div>
+                  <motion.button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeFile();
+                    }}
+                    className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <X className="w-5 h-5 text-gray-500" />
+                  </motion.button>
+                </motion.div>
+              )}
+              
               <p className="text-xs text-gray-400 mt-2 pr-1">
-                * הנתונים נשמרים בזיכרון בלבד ונמחקים בסיום הראיון
+                * הקובץ נשמר בזיכרון בלבד ונמחק בסיום הראיון
               </p>
             </motion.div>
           )}
