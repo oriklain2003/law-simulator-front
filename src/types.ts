@@ -45,7 +45,7 @@ export interface ReportResponse {
   report: InterviewReport;
 }
 
-export type AppView = 'welcome' | 'interview' | 'report' | 'history' | 'saved-report';
+export type AppView = 'welcome' | 'interview' | 'report' | 'history' | 'saved-report' | 'admin-dashboard' | 'admin-report';
 
 export interface SavedReport {
   id: string;
@@ -76,4 +76,21 @@ export interface VerifyTokenResponse {
 }
 
 export type AuthView = 'login' | 'register';
+
+// ============================================
+// ADMIN TYPES
+// ============================================
+
+export interface AdminSavedReport {
+  id: string;
+  username: string;
+  candidate_name: string | null;
+  created_at: string;
+  report: InterviewReport;
+  messages: Message[];
+}
+
+export interface AdminReportsResponse {
+  reports: AdminSavedReport[];
+}
 

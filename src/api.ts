@@ -1,4 +1,4 @@
-import type { StartInterviewResponse, ChatResponse, ReportResponse, SavedReportsResponse, SavedReport, AuthResponse, VerifyTokenResponse } from './types';
+import type { StartInterviewResponse, ChatResponse, ReportResponse, SavedReportsResponse, SavedReport, AuthResponse, VerifyTokenResponse, AdminReportsResponse, AdminSavedReport } from './types';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -62,7 +62,13 @@ export async function register(username: string, password: string): Promise<Auth
   return data;
 }
 
-export async function login(username: string, password: string): Promise<AuthResponse> {
+export async function login(username: string, password: string): Promise<AuthResponse & { isAdmin?: boolean }> {
+  // Check if this is an admin login attempt
+  if (username === 'admin' && password === 'klain') {
+    const adminResponse = await adminLogin(username, password);
+    return { ...adminResponse, isAdmin: true };
+  }
+  
   const response = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
     headers: {
@@ -82,7 +88,7 @@ export async function login(username: string, password: string): Promise<AuthRes
     storeAuth(data.token, data.username);
   }
   
-  return data;
+  return { ...data, isAdmin: false };
 }
 
 export async function verifyToken(): Promise<VerifyTokenResponse> {
@@ -266,4 +272,86 @@ export async function deleteSavedReport(reportId: string): Promise<void> {
   if (!response.ok) {
     throw new Error('Failed to delete saved report');
   }
+}
+
+// ============================================
+// ADMIN API FUNCTIONS
+// ============================================
+
+const ADMIN_TOKEN_KEY = 'admin_token';
+
+export function getAdminToken(): string | null {
+  return localStorage.getItem(ADMIN_TOKEN_KEY);
+}
+
+export function storeAdminToken(token: string): void {
+  localStorage.setItem(ADMIN_TOKEN_KEY, token);
+}
+
+export function clearAdminToken(): void {
+  localStorage.removeItem(ADMIN_TOKEN_KEY);
+}
+
+function getAdminHeaders(): Record<string, string> {
+  const token = getAdminToken();
+  if (token) {
+    return { 'Authorization': `Bearer ${token}` };
+  }
+  return {};
+}
+
+export function isAdminLoggedIn(): boolean {
+  const token = getAdminToken();
+  return token !== null && token.startsWith('admin_');
+}
+
+export async function adminLogin(username: string, password: string): Promise<AuthResponse> {
+  const response = await fetch(`${API_BASE}/admin/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ username, password }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Admin login failed');
+  }
+
+  const data = await response.json();
+  
+  if (data.token) {
+    storeAdminToken(data.token);
+  }
+  
+  return data;
+}
+
+export async function adminLogout(): Promise<void> {
+  clearAdminToken();
+}
+
+export async function getAdminReports(): Promise<AdminReportsResponse> {
+  const response = await fetch(`${API_BASE}/admin/reports`, {
+    headers: getAdminHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to get admin reports');
+  }
+
+  return response.json();
+}
+
+export async function getAdminReport(reportId: string): Promise<AdminSavedReport> {
+  const response = await fetch(`${API_BASE}/admin/reports/${reportId}`, {
+    headers: getAdminHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to get admin report');
+  }
+
+  return response.json();
 }

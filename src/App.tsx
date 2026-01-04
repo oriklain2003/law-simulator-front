@@ -6,6 +6,8 @@ import { ReportView } from './components/ReportView';
 import { ReportsHistory } from './components/ReportsHistory';
 import { SavedReportView } from './components/SavedReportView';
 import { AuthPage } from './components/AuthPage';
+import { AdminDashboard } from './components/AdminDashboard';
+import { AdminReportView } from './components/AdminReportView';
 import { 
   startInterviewWithCV, 
   sendMessage, 
@@ -16,9 +18,11 @@ import {
   register as apiRegister,
   verifyToken,
   logout as apiLogout,
-  getStoredUsername
+  getStoredUsername,
+  isAdminLoggedIn,
+  adminLogout
 } from './api';
-import type { AppView, Message, InterviewPhase, InterviewReport, SavedReport } from './types';
+import type { AppView, Message, InterviewPhase, InterviewReport, SavedReport, AdminSavedReport } from './types';
 
 function App() {
   // Auth state
@@ -26,6 +30,7 @@ function App() {
   const [username, setUsername] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // App state
   const [view, setView] = useState<AppView>('welcome');
@@ -37,10 +42,20 @@ function App() {
   const [report, setReport] = useState<InterviewReport | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [selectedSavedReport, setSelectedSavedReport] = useState<SavedReport | null>(null);
+  const [selectedAdminReport, setSelectedAdminReport] = useState<AdminSavedReport | null>(null);
 
   // Check authentication on mount
   useEffect(() => {
     const checkAuth = async () => {
+      // Check if admin is logged in first
+      if (isAdminLoggedIn()) {
+        setIsAuthenticated(true);
+        setIsAdmin(true);
+        setUsername('admin');
+        setView('admin-dashboard');
+        return;
+      }
+      
       const result = await verifyToken();
       setIsAuthenticated(result.valid);
       if (result.valid && result.username) {
@@ -61,6 +76,12 @@ function App() {
       if (response.success) {
         setIsAuthenticated(true);
         setUsername(response.username || user);
+        
+        // Check if this is an admin login
+        if (response.isAdmin) {
+          setIsAdmin(true);
+          setView('admin-dashboard');
+        }
       }
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : 'ההתחברות נכשלה');
@@ -86,9 +107,14 @@ function App() {
   }, []);
 
   const handleLogout = useCallback(async () => {
-    await apiLogout();
+    if (isAdmin) {
+      await adminLogout();
+    } else {
+      await apiLogout();
+    }
     setIsAuthenticated(false);
     setUsername(null);
+    setIsAdmin(false);
     // Reset app state
     setSessionId(null);
     setMessages([]);
@@ -96,8 +122,9 @@ function App() {
     setIsComplete(false);
     setReport(null);
     setSelectedSavedReport(null);
+    setSelectedAdminReport(null);
     setView('welcome');
-  }, []);
+  }, [isAdmin]);
 
   const handleStartInterview = useCallback(async (name: string, cvFile?: File) => {
     setIsLoading(true);
@@ -220,6 +247,17 @@ function App() {
     setView('history');
   }, []);
 
+  // Admin handlers
+  const handleViewAdminReport = useCallback((adminReport: AdminSavedReport) => {
+    setSelectedAdminReport(adminReport);
+    setView('admin-report');
+  }, []);
+
+  const handleBackFromAdminReport = useCallback(() => {
+    setSelectedAdminReport(null);
+    setView('admin-dashboard');
+  }, []);
+
   // Show loading while checking auth
   if (isAuthenticated === null) {
     return (
@@ -331,6 +369,36 @@ function App() {
           <SavedReportView
             savedReport={selectedSavedReport}
             onBack={handleBackFromSavedReport}
+          />
+        </motion.div>
+      )}
+
+      {view === 'admin-dashboard' && isAdmin && (
+        <motion.div
+          key="admin-dashboard"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <AdminDashboard
+            onLogout={handleLogout}
+            onViewReport={handleViewAdminReport}
+          />
+        </motion.div>
+      )}
+
+      {view === 'admin-report' && isAdmin && selectedAdminReport && (
+        <motion.div
+          key="admin-report"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <AdminReportView
+            report={selectedAdminReport}
+            onBack={handleBackFromAdminReport}
           />
         </motion.div>
       )}
